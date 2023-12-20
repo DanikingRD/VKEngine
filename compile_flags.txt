@@ -1,0 +1,4 @@
+# This is just for avoiding lsp include errors
+-Isrc
+-Itests/src
+-Itests/lib

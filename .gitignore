@@ -2,6 +2,7 @@
 *.o
 # Executables
 *.out
-
 # Build
 bin/
+# VSCode
+.vscode
