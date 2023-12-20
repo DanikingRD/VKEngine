@@ -1,4 +1,5 @@
 #include "window.h"
+#include "core/event.h"
 #include "core/log.h"
 #include "defines.h"
 
@@ -63,12 +64,15 @@ static void mouse_button_callback(GLFWwindow* window, int button, int action, in
     UNUSED(action);
     UNUSED(mods);
 }
-static void window_close_callback(Window* window) { UNUSED(window); }
+static void window_close_callback(Window* window) {
+    UNUSED(window);
+    event_manager_trigger(EVENT_CODE_GAME_EXIT, EVENT_MESSAGE_NULL);
+}
 
 bool window_should_close(Window* window) { return glfwWindowShouldClose(window); }
 void window_poll_events(void) { glfwPollEvents(); }
 
-void destroy_window(Window* window) {
+void window_destroy(Window* window) {
     glfwDestroyWindow(window);
     glfwTerminate();
     INFO("Window destroyed.");
