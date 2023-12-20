@@ -1,7 +1,5 @@
 #include "core/log.h"
-#include "types.h"
 #include "window.h"
-#include <stdio.h>
 
 int main(void) {
     INFO("Info log");

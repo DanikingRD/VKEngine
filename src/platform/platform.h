@@ -1,6 +1,8 @@
 #ifndef PLATFORM_H
 #define PLATFORM_H
 
+#include "types.h"
+
 #ifndef PLATFORM_DEFINES_H
 #define PLATFORM_DEFINES_H
 
@@ -28,5 +30,6 @@ typedef enum WriteColor {
 
 void platform_println(const char* buf, WriteColor color);
 void platform_eprintln(const char* buf, WriteColor color);
+f64 platform_system_time(void);
 
 #endif
