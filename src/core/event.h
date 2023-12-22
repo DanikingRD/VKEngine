@@ -32,6 +32,9 @@ typedef enum EventCode {
      * data[1] = whether the key was pressed or released
      */
     EVENT_CODE_KEY_PRESS,
+
+    EVENT_CODE_KEY_RELEASE,
+    EVENT_CODE_CURSOR_MOVE,
 } EventCode;
 
 typedef void (*EventCallback)(EventCode code, EventMessage message);

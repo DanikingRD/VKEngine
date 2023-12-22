@@ -1,5 +1,6 @@
 #include "window.h"
 #include "core/event.h"
+#include "core/input.h"
 #include "core/log.h"
 #include "defines.h"
 
@@ -42,10 +43,9 @@ static void window_error_callback(int code, const char* description) {
 }
 
 static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods) {
+    input_manager_on_key_press(key, action != GLFW_RELEASE);
     UNUSED(window);
-    UNUSED(key);
     UNUSED(scancode);
-    UNUSED(action);
     UNUSED(mods);
 }
 static void cursor_callback(GLFWwindow* window, double xpos, double ypos) {

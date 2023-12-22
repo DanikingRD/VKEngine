@@ -2,13 +2,14 @@
 #define INPUT_H
 
 #include "types.h"
+#include "math/lineal_types.h"
 
 void input_manager_create(void);
 void input_manager_destroy(void);
 void input_manager_on_key_press(u32 key_code, bool is_pressed);
 void input_manager_on_cursor_move(i32 x, i32 y);
-void input_manager_is_key_pressed(u32 key_code, bool* is_pressed);
-void input_manager_cursor_position(i32* x, i32* y);
+bool input_manager_is_key_pressed(u32 key_code);
+void input_manager_cursor_position(Vec2* pos);
 
 // From glfw3.h
 /* Printable keys */

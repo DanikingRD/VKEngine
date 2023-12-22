@@ -10,10 +10,8 @@ typedef struct App {
 
 App app = {0};
 
-static void window_close_callback(EventCode code, EventMessage message) {
-    INFO("Window close callback");
-    //
-}
+static void window_close_callback(EventCode code, EventMessage message);
+static void key_press_callback(EventCode code, EventMessage message);
 
 bool application_initialize(AppConfig* config) {
     logger_create();
@@ -26,6 +24,8 @@ bool application_initialize(AppConfig* config) {
     INFO("Window created");
     event_manager_create();
     event_manager_register(EVENT_CODE_GAME_EXIT, window_close_callback);
+    event_manager_register(EVENT_CODE_KEY_PRESS, key_press_callback);
+    event_manager_register(EVENT_CODE_KEY_RELEASE, key_press_callback);
     input_manager_create();
     return true;
 }
@@ -40,4 +40,13 @@ bool application_run(void) {
     window_destroy(app.window);
     logger_destroy();
     return true;
+}
+
+static void window_close_callback(EventCode code, EventMessage message) {
+    DEBUG("Application close requested");    
+}
+
+static void key_press_callback(EventCode code, EventMessage message) {
+    u32 key = message.data.u32[0];
+    DEBUG("[%c] pressed.", key);
 }
