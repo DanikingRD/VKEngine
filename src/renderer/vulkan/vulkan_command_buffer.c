@@ -4,7 +4,6 @@ void vulkan_command_buffer_allocate(
     VulkanBackend* backend, VkCommandPool pool, bool is_primary, CommandBuffer* buffer
 ) {
     buffer->state = COMMAND_BUFFER_STATE_NOT_ALLOCATED;
-    // TODO: track command buffer states
     VkCommandBufferAllocateInfo alloc_info = {0};
     alloc_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     alloc_info.commandPool = pool;

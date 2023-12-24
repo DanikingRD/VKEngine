@@ -35,6 +35,13 @@ typedef enum EventCode {
 
     EVENT_CODE_KEY_RELEASE,
     EVENT_CODE_CURSOR_MOVE,
+    /**
+     * @brief Window resize event.
+     * Message details:
+     * data_u32[0] = new width
+     * data_u32[1] = new height
+     */
+    EVENT_CODE_WINDOW_RESIZE,
 } EventCode;
 
 typedef void (*EventCallback)(EventCode code, EventMessage message);

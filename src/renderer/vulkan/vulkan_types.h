@@ -112,15 +112,20 @@ typedef struct VulkanBackend {
     Vector(VkSemaphore) image_available_semaphores;
     Vector(VkSemaphore) queue_complete_semaphores;
     Vector(VkFence) in_flight_fences;
+    VkFence** images_in_flight;
+
     u32 in_flight_fence_count;
 
     u32 framebuffer_width;
     u32 framebuffer_height;
+    bool recreating_swapchain;
+    bool swapchain_needs_resize;
 #ifdef _DEBUG
     VkDebugUtilsMessengerEXT debugger;
 #endif
     i32 (*find_memory_type)(u32 type_filter, VkMemoryPropertyFlags properties);
-
+    u32 image_index;
+    u32 current_frame;
 } VulkanBackend;
 
 #define VK_FN_CHECK(fn)                                                                            \

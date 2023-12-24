@@ -10,6 +10,7 @@ static void mouse_button_callback(Window* window, int button, int action, int mo
 static void scroll_callback(Window* window, double xoffset, double yoffset);
 static void window_close_callback(Window* window);
 static void window_error_callback(int code, const char* description);
+static void window_resize_callback(Window* window, i32 width, i32 height);
 
 Window* create_window(u32 width, u32 height, const char* name) {
     INFO("Creating window");
@@ -30,12 +31,21 @@ Window* create_window(u32 width, u32 height, const char* name) {
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetWindowCloseCallback(window, window_close_callback);
+    glfwSetWindowSizeCallback(window, window_resize_callback);
     return window;
+}
+
+static void window_resize_callback(Window* window, i32 width, i32 height) {
+    EventMessage message;
+    message.data.u16[0] = width;
+    message.data.u16[1] = height;
+    event_manager_trigger(EVENT_CODE_WINDOW_RESIZE, message);
 }
 
 void window_create_vulkan_surface(Window* window, VulkanBackend* backend) {
     VK_FN_CHECK(
-        glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface));
+        glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface)
+    );
 }
 
 void window_required_vulkan_extensions(Vector(const char*) * extensions) {
@@ -50,8 +60,8 @@ void window_required_vulkan_extensions(Vector(const char*) * extensions) {
     }
 }
 
-void window_get_framebuffer_size(Window* window, i32* width, i32* height) {
-    glfwGetFramebufferSize(window, width, height);
+void window_get_framebuffer_size(Window* window, u32* width, u32* height) {
+    glfwGetWindowSize(window, (i32*)width, (i32*)height);
 }
 
 static void window_error_callback(int code, const char* description) {

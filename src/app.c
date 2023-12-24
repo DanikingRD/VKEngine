@@ -13,6 +13,7 @@ App app = {0};
 
 static void window_close_callback(EventCode code, EventMessage message);
 static void key_press_callback(EventCode code, EventMessage message);
+static void application_on_resized(EventCode code, EventMessage message);
 
 bool application_initialize(AppConfig* config) {
     logger_create();
@@ -28,6 +29,7 @@ bool application_initialize(AppConfig* config) {
     event_manager_register(EVENT_CODE_GAME_EXIT, window_close_callback);
     event_manager_register(EVENT_CODE_KEY_PRESS, key_press_callback);
     event_manager_register(EVENT_CODE_KEY_RELEASE, key_press_callback);
+    event_manager_register(EVENT_CODE_WINDOW_RESIZE, application_on_resized);
     input_manager_create();
 
     if (!renderer_create(config->title, app.window)) {
@@ -39,8 +41,10 @@ bool application_initialize(AppConfig* config) {
 
 bool application_run(void) {
     INFO("Game running...");
+    f32 dt = 0.0f;
     while (!window_should_close(app.window)) {
         window_poll_events();
+        renderer_render(dt);
     }
     event_manager_destroy();
     input_manager_destroy();
@@ -48,6 +52,13 @@ bool application_run(void) {
     window_destroy(app.window);
     logger_destroy();
     return true;
+}
+
+static void application_on_resized(EventCode code, EventMessage message) {
+    u16 w = message.data.u16[0];
+    u16 h = message.data.u16[1];
+    renderer_resize(w, h);
+    INFO("Application resized.");
 }
 
 static void window_close_callback(EventCode code, EventMessage message) {

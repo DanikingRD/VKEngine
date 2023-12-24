@@ -8,7 +8,9 @@
 #include "vulkan_renderpass.h"
 #include "vulkan_swapchain.h"
 #include "vulkan_types.h"
+#include "vulkan_utils.h"
 #include "window.h"
+#include <stdlib.h>
 
 VkBool32 vulkan_debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type,
@@ -18,6 +20,7 @@ VkBool32 vulkan_debug_callback(
 i32 find_memory_Type(u32 type_filter, VkMemoryPropertyFlags properties);
 static void allocate_command_buffers(VulkanBackend* backend);
 static void create_framebuffers(VulkanBackend* backend);
+bool recreate_swapchain(void);
 
 static VulkanBackend backend;
 
@@ -146,7 +149,6 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
     backend.framebuffers = vector_with_capacity(VkFramebuffer, backend.swapchain.image_count);
     create_framebuffers(&backend);
     DEBUG("Vulkan Framebuffers created");
-
     // Create sync objects
     backend.image_available_semaphores =
         vector_with_capacity(VkSemaphore, backend.swapchain.max_frames_in_flight);
@@ -174,14 +176,180 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
             backend.device.logical, &fence_info, backend.allocator, &backend.in_flight_fences[i]
         ));
     }
+    backend.images_in_flight = malloc(sizeof(VkFence) * backend.swapchain.image_count);
+    for (u32 i = 0; i < backend.swapchain.image_count; i++) {
+        backend.images_in_flight[i] = 0;
+    }
+    return true;
+}
+
+void vulkan_backend_resize(u16 width, u16 height) {
+    backend.framebuffer_width = width;
+    backend.framebuffer_height = height;
+    backend.swapchain_needs_resize = true;
+    INFO("Resizing backend to: (%dx%d)", width, height);
+}
+
+bool vulkan_backend_begin_frame(f32 dt) {
+    Device* device = &backend.device;
+
+    if (backend.recreating_swapchain) {
+        VkResult result = vkDeviceWaitIdle(device->logical);
+        if (!vulkan_result_is_ok(result)) {
+            ERROR("A fatal error occurred while waiting for recreating swapchain");
+            return false;
+        }
+        return false;
+    }
+    if (backend.swapchain_needs_resize) {
+        VkResult result = vkDeviceWaitIdle(device->logical);
+        if (!vulkan_result_is_ok(result)) {
+            ERROR("A fatal error occurred while waiting for recreating swapchain");
+            return false;
+        }
+        if (!recreate_swapchain()) {
+            return false;
+        }
+    }
+
+    // Wait for the current frame to be completed.
+    VkResult result = vkWaitForFences(
+        device->logical, 1, &backend.in_flight_fences[backend.current_frame], VK_TRUE, UINT64_MAX
+    );
+
+    if (result != VK_SUCCESS) {
+        ERROR("Failed to wait for InFlight fence");
+        return false;
+    }
+
+    if (!vulkan_swapchain_acquire_next_image(
+            &backend, backend.image_available_semaphores[backend.current_frame], 0,
+            &backend.swapchain, UINT64_MAX, &backend.image_index
+        )) {
+        ERROR("Could not acquire image.");
+        return false;
+    }
+
+    CommandBuffer* gfx_cmdbuf = &backend.graphics_command_buffers[backend.image_index];
+    vkResetCommandBuffer(gfx_cmdbuf->handle, 0);
+    vulkan_command_buffer_begin(gfx_cmdbuf, false, false, false);
+
+    VkViewport viewport;
+    viewport.x = 0.0f;
+    viewport.y = backend.framebuffer_height;
+    viewport.width = backend.framebuffer_width;
+    // TODO: put this back
+    // viewport.height = -backend.framebuffer_height;
+    viewport.height = backend.framebuffer_height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    VkRect2D scissor;
+    scissor.offset.x = scissor.offset.y = 0;
+    scissor.extent.width = backend.framebuffer_width;
+    scissor.extent.height = backend.framebuffer_height;
+
+    vkCmdSetViewport(gfx_cmdbuf->handle, 0, 1, &viewport);
+    vkCmdSetScissor(gfx_cmdbuf->handle, 0, 1, &scissor);
+
+    // vulkan_renderpass_begin(gfx_cmdbuf, backend.main_pass)
+    backend.main_pass.render_area.width = backend.framebuffer_width;
+    backend.main_pass.render_area.height = backend.framebuffer_height;
+
+    vulkan_renderpass_begin(
+        &backend, &backend.main_pass, gfx_cmdbuf, backend.framebuffers[backend.image_index]
+    );
+    return true;
+}
+
+bool vulkan_backend_end_frame(f32 dt) {
+    CommandBuffer* gfx_cmdbuf = &backend.graphics_command_buffers[backend.image_index];
+    vulkan_renderpass_end(&backend.main_pass, gfx_cmdbuf);
+    vulkan_command_buffer_end(gfx_cmdbuf);
+
+    // TODO: fix  The Vulkan spec states: All submitted commands that refer to imageView must have
+    // completed execution
+    if (backend.images_in_flight[backend.image_index] != VK_NULL_HANDLE) {
+        vkWaitForFences(
+            backend.device.logical, 1, backend.images_in_flight[backend.image_index], VK_TRUE,
+            UINT64_MAX
+        );
+    }
+
+    backend.images_in_flight[backend.image_index] =
+        &backend.in_flight_fences[backend.current_frame];
+
+    // Reset the fence so that it can be reused in the next frame
+    vkResetFences(backend.device.logical, 1, &backend.in_flight_fences[backend.current_frame]);
+
+    VkSubmitInfo submit_info = {0};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    // Each semaphore will wait on a pipeline stage to complete
+    // In this case, we want to wait for the color attachment output stage
+    // which means one frame will be presented at a time
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &gfx_cmdbuf->handle;
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = &backend.queue_complete_semaphores[backend.current_frame];
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = &backend.image_available_semaphores[backend.current_frame];
+
+    VkResult submit_result = vkQueueSubmit(
+        backend.device.graphics_queue, 1, &submit_info,
+        backend.in_flight_fences[backend.current_frame]
+    );
+
+    if (submit_result != VK_SUCCESS) {
+        ERROR("Failed to submit work.");
+        return false;
+    }
+
+    vulkan_command_buffer_set_submitted(gfx_cmdbuf);
+
+    vulkan_swapchain_present(
+        &backend, &backend.swapchain, backend.device.graphics_queue, backend.device.present_queue,
+        backend.queue_complete_semaphores[backend.current_frame], backend.image_index
+    );
 
     return true;
 }
 
-void vulkan_backend_resize(u16 width, u16 height) {}
-bool vulkan_backend_begin_frame(f32 dt) { return true; }
-bool vulkan_backend_end_frame(f32 dt) { return true; }
+bool recreate_swapchain(void) {
+    if (backend.recreating_swapchain) {
+        return false;
+    }
+    if (backend.framebuffer_width == 0 || backend.framebuffer_height == 0) {
+        return false;
+    }
 
+    backend.recreating_swapchain = true;
+    vkDeviceWaitIdle(backend.device.logical);
+
+    for (u32 i = 0; i < backend.swapchain.image_count; i++) {
+        backend.images_in_flight[i] = 0;
+    }
+
+    vulkan_device_query_swapchain_support(
+        backend.device.physical, backend.surface, &backend.device.swapchain_support
+    );
+    vulkan_swapchain_recreate(
+        &backend, backend.framebuffer_width, backend.framebuffer_height, &backend.swapchain
+    );
+
+    for (u32 i = 0; i < backend.swapchain.image_count; i++) {
+        vkDestroyFramebuffer(backend.device.logical, backend.framebuffers[i], backend.allocator);
+    }
+
+    backend.main_pass.render_area.width = backend.framebuffer_width;
+    backend.main_pass.render_area.height = backend.framebuffer_height;
+    create_framebuffers(&backend);
+    allocate_command_buffers(&backend);
+    backend.recreating_swapchain = false;
+    backend.swapchain_needs_resize = false;
+    return true;
+}
 // Checks the available memory types and returns the index of the first one that
 // matches the filter and has all the required properties.
 i32 find_memory_Type(u32 type_filter, VkMemoryPropertyFlags properties) {
@@ -279,6 +447,8 @@ void vulkan_backend_destroy(void) {
     vector_free(backend.image_available_semaphores);
     vector_free(backend.queue_complete_semaphores);
     vector_free(backend.in_flight_fences);
+    free(backend.images_in_flight);
+    backend.images_in_flight = 0;
 
     INFO("Destroying Vulkan Framebuffers...");
     for (u32 i = 0; i < backend.swapchain.image_count; i++) {
