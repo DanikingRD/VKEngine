@@ -18,5 +18,4 @@ CFLAGS +=-I${SRC_DIR} -I${VULKAN_SDK}/include ${CWARNING_FLAGS}
 CFLAGS_TEST +=${CBASE_FLAGS} ${LDFLAGS}
 CFLAGS_TEST +=-I${SRC_DIR} -I${TEST_SRC_DIR} -I${TEST_LIB_DIR} ${CWARNING_FLAGS}
 # Link flags
-LDFLAGS:= -lglfw -lm  -lvulkan
-# -L$(VULKAN_SDK)/lib
+LDFLAGS:= -lglfw -lm -lvulkan -L$(VULKAN_SDK)/lib

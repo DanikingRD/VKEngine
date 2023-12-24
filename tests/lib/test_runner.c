@@ -58,7 +58,8 @@ void test_runner_run_all_tests(void) {
         }
     }
     f64 execution_time = instant_elapsed(&test_runner_begin);
-    INFO("test result: %d passed; %d failed; %d skipped; finished in %.3fs", passed, failed, skipped, execution_time);
+    INFO("test result: %d passed; %d failed; %d skipped; finished in %.3fs", passed, failed,
+         skipped, execution_time);
 
     vector_free(tests);
 }

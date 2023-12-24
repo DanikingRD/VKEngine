@@ -17,7 +17,8 @@ static void key_press_callback(EventCode code, EventMessage message);
 bool application_initialize(AppConfig* config) {
     logger_create();
     INFO("Initializing...");
-    Window* window = create_window(config->initial_window_width, config->initial_window_height, config->title);
+    Window* window =
+        create_window(config->initial_window_width, config->initial_window_height, config->title);
     if (!window) {
         return false;
     }
@@ -49,7 +50,9 @@ bool application_run(void) {
     return true;
 }
 
-static void window_close_callback(EventCode code, EventMessage message) { DEBUG("Application close requested"); }
+static void window_close_callback(EventCode code, EventMessage message) {
+    DEBUG("Application close requested");
+}
 
 static void key_press_callback(EventCode code, EventMessage message) {
     u32 key = message.data.u32[0];

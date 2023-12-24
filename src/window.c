@@ -34,7 +34,8 @@ Window* create_window(u32 width, u32 height, const char* name) {
 }
 
 void window_create_vulkan_surface(Window* window, VulkanBackend* backend) {
-    VK_FN_CHECK(glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface));
+    VK_FN_CHECK(
+        glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface));
 }
 
 void window_required_vulkan_extensions(Vector(const char*) * extensions) {
