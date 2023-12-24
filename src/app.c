@@ -2,6 +2,7 @@
 #include "core/event.h"
 #include "core/input.h"
 #include "core/log.h"
+#include "renderer/renderer.h"
 #include "window.h"
 
 typedef struct App {
@@ -27,6 +28,11 @@ bool application_initialize(AppConfig* config) {
     event_manager_register(EVENT_CODE_KEY_PRESS, key_press_callback);
     event_manager_register(EVENT_CODE_KEY_RELEASE, key_press_callback);
     input_manager_create();
+
+    if (!renderer_create(config->title, app.window)) {
+        ERROR("Failed to create renderer.");
+        return false;
+    }
     return true;
 }
 
@@ -37,14 +43,13 @@ bool application_run(void) {
     }
     event_manager_destroy();
     input_manager_destroy();
+    renderer_destroy();
     window_destroy(app.window);
     logger_destroy();
     return true;
 }
 
-static void window_close_callback(EventCode code, EventMessage message) {
-    DEBUG("Application close requested");    
-}
+static void window_close_callback(EventCode code, EventMessage message) { DEBUG("Application close requested"); }
 
 static void key_press_callback(EventCode code, EventMessage message) {
     u32 key = message.data.u32[0];

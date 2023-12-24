@@ -1,6 +1,6 @@
 #include "input.h"
-#include "log.h"
 #include "event.h"
+#include "log.h"
 
 typedef struct KeyboardState {
     bool keys[INPUT_KEY_LAST];
@@ -39,10 +39,6 @@ void input_manager_on_cursor_move(i32 x, i32 y) {
     event_manager_trigger(EVENT_CODE_CURSOR_MOVE, packet);
 }
 
-bool input_manager_is_key_pressed(u32 key_code) {
-    return input.keyboard.keys[key_code];
-}
+bool input_manager_is_key_pressed(u32 key_code) { return input.keyboard.keys[key_code]; }
 
-void input_manager_cursor_position(Vec2* pos) {
-    *pos = (Vec2){input.mouse.x, input.mouse.y};
-}
+void input_manager_cursor_position(Vec2* pos) { *pos = (Vec2){input.mouse.x, input.mouse.y}; }

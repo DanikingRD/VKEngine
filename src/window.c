@@ -20,17 +20,33 @@ Window* create_window(u32 width, u32 height, const char* name) {
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
     glfwSetErrorCallback(window_error_callback);
     Window* window = glfwCreateWindow(width, height, name, 0, 0);
-    glfwSetKeyCallback(window, key_callback);
-    glfwSetCursorPosCallback(window, cursor_callback);
-    glfwSetScrollCallback(window, scroll_callback);
-    glfwSetMouseButtonCallback(window, mouse_button_callback);
-    glfwSetWindowCloseCallback(window, window_close_callback);
     if (!window) {
         ERROR("Failed to create window.");
         glfwTerminate();
         return 0;
     }
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetCursorPosCallback(window, cursor_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+    glfwSetWindowCloseCallback(window, window_close_callback);
     return window;
+}
+
+void window_create_vulkan_surface(Window* window, VulkanBackend* backend) {
+    VK_FN_CHECK(glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface));
+}
+
+void window_required_vulkan_extensions(Vector(const char*) * extensions) {
+    u32 extension_count = 0;
+    const char** out = glfwGetRequiredInstanceExtensions(&extension_count);
+    if (!out) {
+        ERROR("[Window] -> Failed to get required extensions");
+        return;
+    }
+    for (u8 i = 0; i < extension_count; i++) {
+        vector_push(*extensions, out[i]);
+    }
 }
 
 void window_get_framebuffer_size(Window* window, i32* width, i32* height) {
