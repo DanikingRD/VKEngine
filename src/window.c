@@ -44,8 +44,7 @@ static void window_resize_callback(Window* window, i32 width, i32 height) {
 
 void window_create_vulkan_surface(Window* window, VulkanBackend* backend) {
     VK_FN_CHECK(
-        glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface)
-    );
+        glfwCreateWindowSurface(backend->instance, window, backend->allocator, &backend->surface));
 }
 
 void window_required_vulkan_extensions(Vector(const char*) * extensions) {

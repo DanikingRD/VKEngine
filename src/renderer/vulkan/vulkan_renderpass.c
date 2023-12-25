@@ -1,10 +1,13 @@
 #include "vulkan_renderpass.h"
 #include <vulkan/vulkan_core.h>
 
-void vulkan_renderpass_create(
-    VulkanBackend* backend, RenderArea render_area, Color clear, f32 depth, f32 stencil,
-    RenderPass* pass
-) {
+void vulkan_renderpass_create(VulkanBackend* backend, RenderArea render_area, Color clear,
+                              f32 depth, f32 stencil, RenderPass* pass) {
+
+    pass->clear_color = clear;
+    pass->depth = depth;
+    pass->stencil = stencil;
+    pass->render_area = render_area;
 
     VkSubpassDescription subpass = {0};
     subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
@@ -73,10 +76,8 @@ void vulkan_renderpass_create(
     pass->render_area = render_area;
 }
 
-void vulkan_renderpass_begin(
-    VulkanBackend* backend, RenderPass* pass, CommandBuffer* command_buffer,
-    VkFramebuffer framebuffer
-) {
+void vulkan_renderpass_begin(VulkanBackend* backend, RenderPass* pass,
+                             CommandBuffer* command_buffer, VkFramebuffer framebuffer) {
     VkRenderPassBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     begin_info.renderPass = pass->handle;

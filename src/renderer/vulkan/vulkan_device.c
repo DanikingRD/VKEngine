@@ -1,6 +1,6 @@
 #include "vulkan_device.h"
 #include "collections/vector.h"
-#include <stdlib.h>
+#include "core/mem.h"
 
 #include "core/str.h"
 
@@ -27,41 +27,37 @@ bool vulkan_device_create(VulkanBackend* backend) {
     return true;
 }
 
-void vulkan_device_query_swapchain_support(
-    VkPhysicalDevice device, VkSurfaceKHR surface, SwapchainSupport* out
-) {
+void vulkan_device_query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface,
+                                           SwapchainSupport* out) {
     VK_FN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &out->capabilities));
 
     VK_FN_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->format_count, 0));
 
     if (out->format_count != 0) {
         if (!out->formats) {
-            out->formats = malloc(sizeof(VkSurfaceFormatKHR) * out->format_count);
+            out->formats = mem_alloc(sizeof(VkSurfaceFormatKHR) * out->format_count);
         }
-        VK_FN_CHECK(
-            vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->format_count, out->formats)
-        );
+        VK_FN_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->format_count,
+                                                         out->formats));
     }
 
     VK_FN_CHECK(
-        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->present_mode_count, 0)
-    );
+        vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &out->present_mode_count, 0));
 
     if (out->present_mode_count != 0) {
         if (!out->present_modes) {
-            out->present_modes = malloc(sizeof(VkPresentModeKHR) * out->present_mode_count);
+            out->present_modes = mem_alloc(sizeof(VkPresentModeKHR) * out->present_mode_count);
         }
         VK_FN_CHECK(vkGetPhysicalDeviceSurfacePresentModesKHR(
-            device, surface, &out->present_mode_count, out->present_modes
-        ));
+            device, surface, &out->present_mode_count, out->present_modes));
     }
 }
 
-bool device_selection_criteria_satisfied(
-    DeviceSelectionCriteria* criteria, VkPhysicalDeviceProperties* properties,
-    VkPhysicalDevice device, VkSurfaceKHR surface, DeviceQueueFamilyIndices* queue_indices,
-    SwapchainSupport* swapchain_support
-) {
+bool device_selection_criteria_satisfied(DeviceSelectionCriteria* criteria,
+                                         VkPhysicalDeviceProperties* properties,
+                                         VkPhysicalDevice device, VkSurfaceKHR surface,
+                                         DeviceQueueFamilyIndices* queue_indices,
+                                         SwapchainSupport* swapchain_support) {
     if (criteria->with_discrete_gpu) {
         if (properties->deviceType != VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU) {
             return false;
@@ -106,8 +102,7 @@ bool device_selection_criteria_satisfied(
         if (!present_family) {
             VkBool32 supports_present_queue = false;
             VK_FN_CHECK(
-                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supports_present_queue)
-            );
+                vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &supports_present_queue));
             if (supports_present_queue) {
                 queue_indices->present_family = i;
                 present_family = true;
@@ -131,10 +126,10 @@ bool device_selection_criteria_satisfied(
 
     if (swapchain_support->format_count <= 0 || swapchain_support->present_mode_count <= 0) {
         if (swapchain_support->formats) {
-            free(swapchain_support->formats);
+            mem_free(swapchain_support->formats);
         }
         if (swapchain_support->present_modes) {
-            free(swapchain_support->present_modes);
+            mem_free(swapchain_support->present_modes);
         }
         DEBUG("Swapchain support does not meet requirements");
         return false;
@@ -146,9 +141,8 @@ bool device_selection_criteria_satisfied(
 
         if (available_extension_count != 0) {
             VkExtensionProperties available_extensions[available_extension_count];
-            VK_FN_CHECK(vkEnumerateDeviceExtensionProperties(
-                device, 0, &available_extension_count, available_extensions
-            ));
+            VK_FN_CHECK(vkEnumerateDeviceExtensionProperties(device, 0, &available_extension_count,
+                                                             available_extensions));
 
             for (u32 i = 0; i < vector_length(criteria->device_extensions); i++) {
                 bool found = false;
@@ -234,14 +228,11 @@ static bool pick_physical_device(VulkanBackend* backend) {
 
         INFO("Evaluating device %s", properties.deviceName);
 
-        if (!device_selection_criteria_satisfied(
-                &criteria, &properties, candidate, backend->surface, &queue_indices,
-                &swapchain_support
-            )) {
-            DEBUG(
-                "Device selection criteria was not satifisfied. Skipping device %s",
-                properties.deviceName
-            );
+        if (!device_selection_criteria_satisfied(&criteria, &properties, candidate,
+                                                 backend->surface, &queue_indices,
+                                                 &swapchain_support)) {
+            DEBUG("Device selection criteria was not satifisfied. Skipping device %s",
+                  properties.deviceName);
         }
 
         INFO("Device %s was picked.", properties.deviceName);
@@ -265,15 +256,12 @@ static bool pick_physical_device(VulkanBackend* backend) {
             break;
         }
 
-        INFO(
-            "GPU Driver Version: %d.%d.%d", VK_VERSION_MAJOR(properties.driverVersion),
-            VK_VERSION_MINOR(properties.driverVersion), VK_VERSION_PATCH(properties.driverVersion)
-        );
+        INFO("GPU Driver Version: %d.%d.%d", VK_VERSION_MAJOR(properties.driverVersion),
+             VK_VERSION_MINOR(properties.driverVersion),
+             VK_VERSION_PATCH(properties.driverVersion));
 
-        INFO(
-            "API Version: %d.%d.%d", VK_VERSION_MAJOR(properties.apiVersion),
-            VK_VERSION_MINOR(properties.apiVersion), VK_VERSION_PATCH(properties.apiVersion)
-        );
+        INFO("API Version: %d.%d.%d", VK_VERSION_MAJOR(properties.apiVersion),
+             VK_VERSION_MINOR(properties.apiVersion), VK_VERSION_PATCH(properties.apiVersion));
         f32 total_dedicated_mem = 0.0f;
         f32 total_shared_mem = 0.0f;
         for (u32 i = 0; i < memory_properties.memoryHeapCount; i++) {
@@ -350,14 +338,12 @@ static bool create_logical_device(VulkanBackend* backend) {
 
     bool portability_required = false;
     u32 available_device_extensions = 0;
-    VK_FN_CHECK(vkEnumerateDeviceExtensionProperties(
-        backend->device.physical, 0, &available_device_extensions, 0
-    ));
+    VK_FN_CHECK(vkEnumerateDeviceExtensionProperties(backend->device.physical, 0,
+                                                     &available_device_extensions, 0));
     if (available_device_extensions != 0) {
         VkExtensionProperties extension_properties[available_device_extensions];
         VK_FN_CHECK(vkEnumerateDeviceExtensionProperties(
-            backend->device.physical, 0, &available_device_extensions, extension_properties
-        ));
+            backend->device.physical, 0, &available_device_extensions, extension_properties));
         for (u32 i = 0; i < available_device_extensions; i++) {
             VkExtensionProperties prop = extension_properties[i];
             if (str_equals(prop.extensionName, "VK_KHR_portability_subset")) {
@@ -383,22 +369,15 @@ static bool create_logical_device(VulkanBackend* backend) {
     device_create_info.ppEnabledExtensionNames = extensions;
     device_create_info.pEnabledFeatures = &features;
 
-    VK_FN_CHECK(vkCreateDevice(
-        backend->device.physical, &device_create_info, backend->allocator, &backend->device.logical
-    ));
+    VK_FN_CHECK(vkCreateDevice(backend->device.physical, &device_create_info, backend->allocator,
+                               &backend->device.logical));
     // Get Queues
-    vkGetDeviceQueue(
-        backend->device.logical, backend->device.queue_family_indices.graphics_family, 0,
-        &backend->device.graphics_queue
-    );
-    vkGetDeviceQueue(
-        backend->device.logical, backend->device.queue_family_indices.present_family, 0,
-        &backend->device.present_queue
-    );
-    vkGetDeviceQueue(
-        backend->device.logical, backend->device.queue_family_indices.transfer_family, 0,
-        &backend->device.transfer_queue
-    );
+    vkGetDeviceQueue(backend->device.logical, backend->device.queue_family_indices.graphics_family,
+                     0, &backend->device.graphics_queue);
+    vkGetDeviceQueue(backend->device.logical, backend->device.queue_family_indices.present_family,
+                     0, &backend->device.present_queue);
+    vkGetDeviceQueue(backend->device.logical, backend->device.queue_family_indices.transfer_family,
+                     0, &backend->device.transfer_queue);
 
     if (backend->device.graphics_queue && backend->device.present_queue &&
         backend->device.transfer_queue) {
@@ -411,10 +390,8 @@ static bool create_logical_device(VulkanBackend* backend) {
     pool_info.queueFamilyIndex = backend->device.queue_family_indices.graphics_family;
     // allows resetting individual command buffers
     pool_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    VK_FN_CHECK(vkCreateCommandPool(
-        backend->device.logical, &pool_info, backend->allocator,
-        &backend->device.graphics_command_pool
-    ));
+    VK_FN_CHECK(vkCreateCommandPool(backend->device.logical, &pool_info, backend->allocator,
+                                    &backend->device.graphics_command_pool));
     DEBUG("Graphics Command Pool created");
     return true;
 }
@@ -446,9 +423,8 @@ void vulkan_device_destroy(VulkanBackend* backend) {
 
     DEBUG("Destroying Vulkan Command Pools...");
     if (backend->device.graphics_command_pool) {
-        vkDestroyCommandPool(
-            backend->device.logical, backend->device.graphics_command_pool, backend->allocator
-        );
+        vkDestroyCommandPool(backend->device.logical, backend->device.graphics_command_pool,
+                             backend->allocator);
     }
     DEBUG("Destroying Vulkan Device...");
     backend->device.graphics_queue = VK_NULL_HANDLE;
@@ -460,12 +436,12 @@ void vulkan_device_destroy(VulkanBackend* backend) {
     backend->device.physical = VK_NULL_HANDLE;
     // TODO: destroy logical device
     if (backend->device.swapchain_support.formats) {
-        free(backend->device.swapchain_support.formats);
+        mem_free(backend->device.swapchain_support.formats);
         backend->device.swapchain_support.formats = 0;
         backend->device.swapchain_support.format_count = 0;
     }
     if (backend->device.swapchain_support.present_modes) {
-        free(backend->device.swapchain_support.present_modes);
+        mem_free(backend->device.swapchain_support.present_modes);
         backend->device.swapchain_support.present_modes = 0;
         backend->device.swapchain_support.present_mode_count = 0;
     }

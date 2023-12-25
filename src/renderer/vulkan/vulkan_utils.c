@@ -1,6 +1,6 @@
 #include "vulkan_utils.h"
 
-const char* vulkan_result_string(VkResult result, bool extended) {
+const char* vulkan_result_to_str(VkResult result, bool extended) {
     // Spec: https://registry.khronos.org/vulkan/specs/1.3-extensions/man/html/VkResult.html
     // Success Codes
     switch (result) {

@@ -11,7 +11,7 @@ typedef enum LogLevel {
     LOG_LEVEL_TRACE,
 } LogLevel;
 
-void logger_create(void);
+bool logger_create(void);
 void logger_destroy(void);
 void logger_log(LogLevel level, const char* file, u32 number, const char* message, ...);
 

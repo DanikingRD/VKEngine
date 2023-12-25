@@ -30,4 +30,8 @@ typedef union Vec3 {
     };
 } Vec3;
 
+typedef union Mat4 {
+    f32 data[16];
+} Mat4;
+
 #endif

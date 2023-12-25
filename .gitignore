@@ -6,3 +6,5 @@
 bin/
 # VSCode
 .vscode
+# log files
+*.log

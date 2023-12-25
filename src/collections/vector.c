@@ -1,7 +1,7 @@
 #include "vector.h"
 #include "core/log.h"
+#include "core/mem.h"
 #include <core/log.h>
-#include <stdlib.h>
 #include <string.h>
 
 typedef struct VectorHeader {
@@ -17,7 +17,7 @@ Vector(T) _vector_new(u64 length, u64 stride) {
     }
     u64 header_size = sizeof(VectorHeader);
     u64 array_size = length * stride;
-    VectorHeader* header = malloc(header_size + array_size);
+    VectorHeader* header = mem_alloc(header_size + array_size);
     header->length = 0;
     header->capacity = length;
     header->stride = stride;
@@ -28,7 +28,7 @@ void _vector_free(Vector(T) array) {
     if (array) {
         u64 header_size = sizeof(VectorHeader);
         VectorHeader* header = (VectorHeader*)((u8*)array - header_size);
-        free(header);
+        mem_free(header);
     }
 }
 

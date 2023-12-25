@@ -3,7 +3,22 @@
 
 #include "collections/vector.h"
 #include "core/log.h"
+#include "math/lineal_types.h"
 #include "vulkan/vulkan.h"
+#include "vulkan_utils.h"
+
+typedef struct Vertex {
+    Vec3 pos;
+} Vertex;
+
+typedef struct Buffer {
+    VkBuffer handle;
+    VkBufferUsageFlagBits usage;
+    VkDeviceMemory memory;
+    i32 memory_index;
+    u32 mem_flags;
+    u64 size;
+} Buffer;
 
 typedef enum CommandBufferState {
     // Initial state
@@ -55,6 +70,23 @@ typedef struct Image {
     u32 width;
     u32 height;
 } Image;
+
+typedef struct ShaderModule {
+    VkShaderModule handle;
+    VkPipelineShaderStageCreateInfo stage_info;
+} ShaderModule;
+
+typedef struct Pipeline {
+    VkPipeline pipeline;
+    VkPipelineLayout layout;
+} Pipeline;
+
+#define AVAILABLE_SHADER_STAGES 2
+
+typedef struct Shader {
+    ShaderModule modules[AVAILABLE_SHADER_STAGES];
+    Pipeline pipeline;
+} Shader;
 
 typedef struct Swapchain {
     VkSurfaceFormatKHR format;
@@ -113,6 +145,10 @@ typedef struct VulkanBackend {
     Vector(VkSemaphore) queue_complete_semaphores;
     Vector(VkFence) in_flight_fences;
     VkFence** images_in_flight;
+    Shader basic_shader;
+
+    Buffer vertex_buffer;
+    Buffer index_buffer;
 
     u32 in_flight_fence_count;
 
@@ -120,6 +156,7 @@ typedef struct VulkanBackend {
     u32 framebuffer_height;
     bool recreating_swapchain;
     bool swapchain_needs_resize;
+
 #ifdef _DEBUG
     VkDebugUtilsMessengerEXT debugger;
 #endif
@@ -132,7 +169,7 @@ typedef struct VulkanBackend {
     {                                                                                              \
         VkResult result = fn;                                                                      \
         if (result != VK_SUCCESS) {                                                                \
-            ERROR("Vulkan Function Error: %d", result);                                            \
+            ERROR("Vulkan Function Error: %s", vulkan_result_to_str(result, true));                \
         }                                                                                          \
     }
 
