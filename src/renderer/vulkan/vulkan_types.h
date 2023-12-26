@@ -4,6 +4,7 @@
 #include "collections/vector.h"
 #include "core/log.h"
 #include "math/lineal_types.h"
+#include "renderer/renderer_backend.h"
 #include "vulkan/vulkan.h"
 #include "vulkan_utils.h"
 
@@ -40,26 +41,12 @@ typedef struct CommandBuffer {
     CommandBufferState state;
 } CommandBuffer;
 
-typedef struct Color {
-    f32 r;
-    f32 g;
-    f32 b;
-    f32 a;
-} Color;
-
-typedef struct RenderArea {
-    f32 x;
-    f32 y;
-    f32 width;
-    f32 height;
-} RenderArea;
-
 typedef struct RenderPass {
     VkRenderPass handle;
     f32 depth;
     f32 stencil;
-    Color clear_color;
-    RenderArea render_area;
+    Vec4 clear_color;
+    Vec4 render_area;
 } RenderPass;
 
 typedef struct Image {
@@ -84,8 +71,17 @@ typedef struct Pipeline {
 #define AVAILABLE_SHADER_STAGES 2
 
 typedef struct Shader {
+    VkDescriptorPool descriptor_pool;
+    // 1 per swapchain image
+    VkDescriptorSet* descriptor_sets;
+    // no need to create 4 descriptor set layouts
+    // since we are using the same layout for each frame.
+    VkDescriptorSetLayout descriptor_layout;
     ShaderModule modules[AVAILABLE_SHADER_STAGES];
     Pipeline pipeline;
+    GlobalsUBO globals;
+    Buffer* globals_buffer;
+
 } Shader;
 
 typedef struct Swapchain {

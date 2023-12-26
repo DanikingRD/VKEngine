@@ -30,7 +30,6 @@ bool vulkan_device_create(VulkanBackend* backend) {
 void vulkan_device_query_swapchain_support(VkPhysicalDevice device, VkSurfaceKHR surface,
                                            SwapchainSupport* out) {
     VK_FN_CHECK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &out->capabilities));
-
     VK_FN_CHECK(vkGetPhysicalDeviceSurfaceFormatsKHR(device, surface, &out->format_count, 0));
 
     if (out->format_count != 0) {

@@ -2,7 +2,7 @@
 #define RENDERER_H
 
 #include "types.h"
-#include "window.h"
+#include "window_types.h"
 
 bool renderer_create(const char* app_name, Window* window);
 void renderer_destroy(void);

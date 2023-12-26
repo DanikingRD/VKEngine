@@ -2,7 +2,6 @@
 #include "core/event.h"
 #include "core/input.h"
 #include "core/log.h"
-#include "core/str.h"
 #include "renderer/renderer.h"
 #include "window.h"
 

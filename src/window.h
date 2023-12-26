@@ -1,11 +1,9 @@
 #ifndef WINDOW_H
 #define WINDOW_H
-// #define GLFW_INCLUDE_VULKAN
 #include "renderer/vulkan/vulkan_types.h"
 #include "types.h"
-#include <GLFW/glfw3.h>
+#include "window_types.h"
 #include <collections/vector.h>
-typedef GLFWwindow Window;
 
 Window* create_window(u32 width, u32 height, const char* name);
 bool window_should_close(Window* window);

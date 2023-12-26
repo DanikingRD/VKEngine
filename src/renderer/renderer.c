@@ -1,7 +1,7 @@
 #include "renderer.h"
 #include "core/log.h"
+#include "math/lineal.h"
 #include "renderer_backend.h"
-
 static RendererBackend backend = {0};
 
 bool renderer_create(const char* app_name, Window* window) {
@@ -17,6 +17,7 @@ bool renderer_create(const char* app_name, Window* window) {
 
 bool renderer_render(f32 dt) {
     if (backend.begin_frame(dt)) {
+        backend.update_globals(mat4_identity(), mat4_identity());
         bool is_ok = backend.end_frame(dt);
         if (!is_ok) {
             ERROR("Could not finish frame.");

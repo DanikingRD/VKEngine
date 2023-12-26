@@ -2,7 +2,10 @@
 #include "core/mem.h"
 #include "core/str.h"
 #include "platform/fs.h"
+#include "renderer/vulkan/vulkan_descriptor_set.h"
+#include "vulkan_buffer.h"
 #include "vulkan_pipeline.h"
+#include <vulkan/vulkan_core.h>
 
 #define BUILTIN_SHADER_NAME "builtin.shader"
 
@@ -63,13 +66,32 @@ bool vulkan_shader_create(VulkanBackend* backend, Shader* shader) {
         }
     }
 
-    // TODO: uniform buffers
+    vulkan_descriptor_set_layout_create(backend, 0, &shader->descriptor_layout);
+
+    // GlobalsUBO buffer
+
+    Buffer* buffers = mem_alloc(sizeof(Buffer) * backend->swapchain.max_frames_in_flight);
+
+    for (u32 i = 0; i < backend->swapchain.max_frames_in_flight; i++) {
+        vulkan_buffer_create(
+            backend, VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+            VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT |
+                VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+            sizeof(GlobalsUBO), true, &buffers[i]);
+    }
+
+    shader->globals_buffer = buffers;
+
+    vulkan_descriptor_set_pool_create(backend, backend->swapchain.max_frames_in_flight,
+                                      &shader->descriptor_pool);
+    const u32 descriptor_set_layout_count = 1;
+    VkDescriptorSetLayout descriptor_set_layouts[1] = {shader->descriptor_layout};
+
     VkViewport viewport = {0};
     viewport.x = 0.0f;
     viewport.y = backend->framebuffer_height;
     viewport.width = (f32)backend->framebuffer_width;
-    // TODO: flip viewport height
-    viewport.height = (f32)backend->framebuffer_height;
+    viewport.height = -(f32)backend->framebuffer_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
@@ -98,10 +120,16 @@ bool vulkan_shader_create(VulkanBackend* backend, Shader* shader) {
         stage_create_infos[i] = shader->modules[i].stage_info;
     }
 
-    vulkan_render_pipeline_create(backend, &backend->main_pass, attribute_count,
-                                  attribute_descriptions, 0, 0, AVAILABLE_SHADER_STAGES,
-                                  stage_create_infos, viewport, scissor, false,
-                                  &backend->basic_shader.pipeline);
+    vulkan_render_pipeline_create(
+        backend, &backend->main_pass, attribute_count, attribute_descriptions,
+        descriptor_set_layout_count, descriptor_set_layouts, AVAILABLE_SHADER_STAGES,
+        stage_create_infos, viewport, scissor, false, &backend->basic_shader.pipeline);
+
+    shader->descriptor_sets = vulkan_descriptor_set_create(backend, shader->descriptor_pool,
+                                                           backend->swapchain.max_frames_in_flight);
+
+    vulkan_descriptor_set_update(backend, shader->descriptor_sets, shader->globals_buffer,
+                                 backend->swapchain.max_frames_in_flight);
 
     DEBUG("Vulkan Basic Pipeline created.");
     return true;
@@ -113,11 +141,15 @@ void vulkan_shader_bind(VulkanBackend* backend, Shader* shader) {
 }
 
 void vulkan_shader_destroy(VulkanBackend* backend, Shader* shader) {
+
+    vulkan_descriptor_set_destroy(backend, &shader->descriptor_layout, shader->globals_buffer,
+                                  shader->descriptor_pool);
+
     vulkan_pipeline_destroy(backend, &backend->basic_shader.pipeline);
-    DEBUG("Vulkan pipeline destroyed.");
     for (u32 i = 0; i < AVAILABLE_SHADER_STAGES; i++) {
         ShaderModule* module = &shader->modules[i];
         vkDestroyShaderModule(backend->device.logical, module->handle, backend->allocator);
         shader->modules[i].handle = 0;
     }
+    DEBUG("Vulkan Shader Modules destroyed.");
 }

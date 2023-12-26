@@ -84,6 +84,7 @@ static void create(VulkanBackend* backend, u32 w, u32 h, Swapchain* out) {
     swapchain_extent.height = CLAMP(swapchain_extent.height, min.height, max.height);
 
     u32 image_count = support->capabilities.minImageCount + 1;
+
     // We ignore zero because it means there is no limit.
     // However if it is not zero and image_count is greater than the max, we clamp it.
     if (support->capabilities.maxImageCount > 0 &&
@@ -162,8 +163,6 @@ static void create(VulkanBackend* backend, u32 w, u32 h, Swapchain* out) {
                         VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
                         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, true, VK_IMAGE_ASPECT_DEPTH_BIT,
                         &out->depth_image);
-
-    INFO("Swapchain created");
 }
 
 bool vulkan_swapchain_acquire_next_image(VulkanBackend* backend, VkSemaphore semaphore,

@@ -6,6 +6,7 @@ bool renderer_backend_setup(const char* app_name, Window* window, RendererBacken
         backend->create = vulkan_backend_create;
         backend->resize = vulkan_backend_resize;
         backend->begin_frame = vulkan_backend_begin_frame;
+        backend->update_globals = vulkan_backend_update_globals;
         backend->end_frame = vulkan_backend_end_frame;
         backend->destroy = vulkan_backend_destroy;
         return true;
@@ -17,6 +18,7 @@ void renderer_backend_reset(RendererBackend* backend) {
     backend->create = 0;
     backend->resize = 0;
     backend->begin_frame = 0;
+    backend->update_globals = 0;
     backend->end_frame = 0;
     backend->destroy = 0;
 }

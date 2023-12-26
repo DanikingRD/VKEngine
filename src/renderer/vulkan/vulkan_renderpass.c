@@ -1,8 +1,8 @@
 #include "vulkan_renderpass.h"
 #include <vulkan/vulkan_core.h>
 
-void vulkan_renderpass_create(VulkanBackend* backend, RenderArea render_area, Color clear,
-                              f32 depth, f32 stencil, RenderPass* pass) {
+void vulkan_renderpass_create(VulkanBackend* backend, Vec4 render_area, Vec4 clear, f32 depth,
+                              f32 stencil, RenderPass* pass) {
 
     pass->clear_color = clear;
     pass->depth = depth;
