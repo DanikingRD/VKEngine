@@ -8,4 +8,3 @@ void vulkan_shader_bind(VulkanBackend* backend, Shader* shader);
 void vulkan_shader_destroy(VulkanBackend* backend, Shader* shader);
 
 #endif
-

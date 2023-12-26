@@ -31,7 +31,7 @@ Window* create_window(u32 width, u32 height, const char* name) {
     glfwSetScrollCallback(window, scroll_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
     glfwSetWindowCloseCallback(window, window_close_callback);
-    glfwSetFramebufferSizeCallback(window, window_resize_callback);
+    glfwSetWindowSizeCallback(window, window_resize_callback);
     return window;
 }
 
@@ -60,7 +60,7 @@ void window_required_vulkan_extensions(Vector(const char*) * extensions) {
 }
 
 void window_get_framebuffer_size(Window* window, u32* width, u32* height) {
-    glfwGetFramebufferSize(window, (i32*)width, (i32*)height);
+    glfwGetWindowSize(window, (i32*)width, (i32*)height);
 }
 
 static void window_error_callback(int code, const char* description) {

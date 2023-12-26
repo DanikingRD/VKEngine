@@ -2,6 +2,7 @@
 #include "core/event.h"
 #include "core/input.h"
 #include "core/log.h"
+#include "core/str.h"
 #include "renderer/renderer.h"
 #include "window.h"
 
@@ -57,7 +58,6 @@ bool application_run(void) {
 static void application_on_resized(EventCode code, EventMessage message) {
     u16 w = message.data.u16[0];
     u16 h = message.data.u16[1];
-
     renderer_resize(w, h);
     INFO("Application resized.");
 }

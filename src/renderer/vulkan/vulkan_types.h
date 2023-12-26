@@ -40,12 +40,26 @@ typedef struct CommandBuffer {
     CommandBufferState state;
 } CommandBuffer;
 
+typedef struct Color {
+    f32 r;
+    f32 g;
+    f32 b;
+    f32 a;
+} Color;
+
+typedef struct RenderArea {
+    f32 x;
+    f32 y;
+    f32 width;
+    f32 height;
+} RenderArea;
+
 typedef struct RenderPass {
     VkRenderPass handle;
     f32 depth;
     f32 stencil;
-    Vec4 clear_color;
-    Vec4 render_area;
+    Color clear_color;
+    RenderArea render_area;
 } RenderPass;
 
 typedef struct Image {
@@ -124,14 +138,13 @@ typedef struct VulkanBackend {
     Swapchain swapchain;
     RenderPass main_pass;
 
-    // Vector(CommandBuffer) graphics_command_buffers;
-    CommandBuffer graphics_command_buffers[3];
-    VkFramebuffer framebuffers[3];
-    VkSemaphore image_available_semaphores[3];
-    VkSemaphore queue_complete_semaphores[3];
-    VkFence in_flight_fences[3];
-    VkFence* images_in_flight[3];
-    // VkFence** images_in_flight;
+    Vector(CommandBuffer) graphics_command_buffers;
+    Vector(VkFramebuffer) framebuffers;
+
+    Vector(VkSemaphore) image_available_semaphores;
+    Vector(VkSemaphore) queue_complete_semaphores;
+    Vector(VkFence) in_flight_fences;
+    VkFence** images_in_flight;
     Shader basic_shader;
 
     Buffer vertex_buffer;
