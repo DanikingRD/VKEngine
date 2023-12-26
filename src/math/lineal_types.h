@@ -30,6 +30,24 @@ typedef union Vec3 {
     };
 } Vec3;
 
+typedef union Vec4 {
+    f32 data[4];
+    struct {
+        union {
+            f32 x, r;
+        };
+        union {
+            f32 y, g;
+        };
+        union {
+            f32 z, b, width;
+        };
+        union {
+            f32 w, a, height;
+        };
+    };
+} Vec4;
+
 typedef union Mat4 {
     f32 data[16];
 } Mat4;

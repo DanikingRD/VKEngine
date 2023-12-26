@@ -1,7 +1,6 @@
 #include "vulkan_backend.h"
 #include "collections/vector.h"
 #include "core/log.h"
-#include "core/mem.h"
 #include "core/str.h"
 #include "defines.h"
 #include "vulkan_buffer.h"
@@ -23,7 +22,6 @@ i32 find_memory_Type(u32 type_filter, VkMemoryPropertyFlags properties);
 static void allocate_command_buffers(VulkanBackend* backend);
 static void create_framebuffers(VulkanBackend* backend);
 static bool recreate_swapchain(void);
-
 static void buffer_data_transfer(VulkanBackend* ctx, VkCommandPool pool, VkFence fence,
                                  VkQueue queue, Buffer* dst, u64 dst_offset, u64 size, void* data);
 
@@ -94,7 +92,6 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
     create_info.flags |= VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
 
     VK_FN_CHECK(vkCreateInstance(&create_info, backend.allocator, &backend.instance));
-
     // ensure these are freed
     vector_free(extensions);
     vector_free(validation_layers);
@@ -133,32 +130,14 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
         return false;
     }
     DEBUG("Vulkan Swapchain created");
-    RenderArea area = {
-        .x = 0,
-        .y = 0,
-        .width = backend.framebuffer_width,
-        .height = backend.framebuffer_height,
-    };
-    Color clear_color = {
-        .r = 0.0f,
-        .g = 0.0f,
-        .b = 0.25f,
-        .a = 1.0f,
-    };
+    Vec4 area = (Vec4){0, 0, backend.framebuffer_width, backend.framebuffer_height};
+    Vec4 clear_color = (Vec4){0.4, 0.5, 0.6, 1.0};
     vulkan_renderpass_create(&backend, area, clear_color, 1.0f, 0.0f, &backend.main_pass);
     DEBUG("Vulkan Main Renderpass created");
     allocate_command_buffers(&backend);
     DEBUG("Vulkan Command Buffers allocated");
-    backend.framebuffers = vector_with_capacity(VkFramebuffer, backend.swapchain.image_count);
     create_framebuffers(&backend);
     DEBUG("Vulkan Framebuffers created");
-    // Create sync objects
-    backend.image_available_semaphores =
-        vector_with_capacity(VkSemaphore, backend.swapchain.max_frames_in_flight);
-    backend.queue_complete_semaphores =
-        vector_with_capacity(VkSemaphore, backend.swapchain.max_frames_in_flight);
-    backend.in_flight_fences =
-        vector_with_capacity(VkFence, backend.swapchain.max_frames_in_flight);
 
     for (u32 i = 0; i < backend.swapchain.max_frames_in_flight; i++) {
         VkSemaphoreCreateInfo semaphore_info = {0};
@@ -173,10 +152,6 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
         fence_info.flags = VK_FENCE_CREATE_SIGNALED_BIT;
         VK_FN_CHECK(vkCreateFence(backend.device.logical, &fence_info, backend.allocator,
                                   &backend.in_flight_fences[i]));
-    }
-    backend.images_in_flight = mem_alloc(sizeof(VkFence) * backend.swapchain.image_count);
-    for (u32 i = 0; i < backend.swapchain.image_count; i++) {
-        backend.images_in_flight[i] = 0;
     }
 
     if (!vulkan_shader_create(&backend, &backend.basic_shader)) {
@@ -200,10 +175,8 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
 
     INFO("Index Buffer created");
 
-    const u32 vertices = 3;
+    const u32 vertices = 4;
     Vertex verts[vertices];
-
-    // render a centered triangle using vulkan clip space
 
     verts[0].pos.x = -0.5f;
     verts[0].pos.y = -0.5f;
@@ -211,15 +184,18 @@ bool vulkan_backend_create(const char* app_name, Window* window) {
     verts[1].pos.x = 0.5f;
     verts[1].pos.y = -0.5f;
 
-    verts[2].pos.x = 0.0f;
+    verts[2].pos.x = 0.5f;
     verts[2].pos.y = 0.5f;
+
+    verts[3].pos.x = -0.5f;
+    verts[3].pos.y = 0.5f;
 
     buffer_data_transfer(&backend, backend.device.graphics_command_pool, 0,
                          backend.device.graphics_queue, &backend.vertex_buffer, 0,
                          sizeof(Vertex) * vertices, verts);
 
-    const u32 indices = 3;
-    u32 indices_data[] = {0, 1, 2};
+    const u32 indices = 6;
+    u32 indices_data[] = {0, 1, 2, 2, 3, 0};
 
     buffer_data_transfer(&backend, backend.device.graphics_command_pool, 0,
                          backend.device.graphics_queue, &backend.index_buffer, 0,
@@ -238,18 +214,15 @@ void vulkan_backend_resize(u16 width, u16 height) {
 
 bool vulkan_backend_begin_frame(f32 dt) {
     Device* device = &backend.device;
-
     if (backend.recreating_swapchain) {
-        VkResult result = vkDeviceWaitIdle(device->logical);
-        if (!vulkan_result_is_ok(result)) {
+        if (!vulkan_result_is_ok(vkDeviceWaitIdle(device->logical))) {
             ERROR("A fatal error occurred while waiting for recreating swapchain");
             return false;
         }
         return false;
     }
     if (backend.swapchain_needs_resize) {
-        VkResult result = vkDeviceWaitIdle(device->logical);
-        if (!vulkan_result_is_ok(result)) {
+        if (!vulkan_result_is_ok(vkDeviceWaitIdle(device->logical))) {
             ERROR("A fatal error occurred while waiting for recreating swapchain");
             return false;
         }
@@ -297,16 +270,14 @@ bool vulkan_backend_begin_frame(f32 dt) {
 
     backend.main_pass.render_area.width = backend.framebuffer_width;
     backend.main_pass.render_area.height = backend.framebuffer_height;
-
     vulkan_renderpass_begin(&backend, &backend.main_pass, gfx_cmdbuf,
                             backend.framebuffers[backend.image_index]);
 
     vulkan_shader_bind(&backend, &backend.basic_shader);
     VkDeviceSize offsets[] = {0};
     vkCmdBindVertexBuffers(gfx_cmdbuf->handle, 0, 1, &backend.vertex_buffer.handle, offsets);
-    // vkCmdBindIndexBuffer(gfx_cmdbuf->handle, backend.index_buffer.handle, 0,
-    // VK_INDEX_TYPE_UINT32); vkCmdDrawIndexed(gfx_cmdbuf->handle, 3, 1, 0, 0, 0);
-    vkCmdDraw(gfx_cmdbuf->handle, 3, 1, 0, 0);
+    vkCmdBindIndexBuffer(gfx_cmdbuf->handle, backend.index_buffer.handle, 0, VK_INDEX_TYPE_UINT32);
+    vkCmdDrawIndexed(gfx_cmdbuf->handle, 6, 1, 0, 0, 0);
     return true;
 }
 
@@ -367,10 +338,6 @@ static bool recreate_swapchain(void) {
     backend.recreating_swapchain = true;
     vkDeviceWaitIdle(backend.device.logical);
 
-    for (u32 i = 0; i < backend.swapchain.image_count; i++) {
-        backend.images_in_flight[i] = 0;
-    }
-
     vulkan_device_query_swapchain_support(backend.device.physical, backend.surface,
                                           &backend.device.swapchain_support);
 
@@ -411,10 +378,6 @@ i32 find_memory_Type(u32 type_filter, VkMemoryPropertyFlags properties) {
 }
 
 static void allocate_command_buffers(VulkanBackend* backend) {
-    if (!backend->graphics_command_buffers) {
-        backend->graphics_command_buffers =
-            vector_with_capacity(CommandBuffer, backend->swapchain.image_count);
-    }
     // create a command buffer per swapchain image.
     for (u32 i = 0; i < backend->swapchain.image_count; i++) {
         vulkan_command_buffer_allocate(backend, backend->device.graphics_command_pool, true,
@@ -444,6 +407,7 @@ static void create_framebuffers(VulkanBackend* backend) {
                                         backend->allocator, &backend->framebuffers[i]));
     }
 }
+
 VKAPI_ATTR VkBool32 VKAPI_CALL vulkan_debug_callback(
     VkDebugUtilsMessageSeverityFlagBitsEXT severity, VkDebugUtilsMessageTypeFlagsEXT type,
     const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* data) {
@@ -470,7 +434,6 @@ void buffer_data_transfer(VulkanBackend* ctx, VkCommandPool pool, VkFence fence,
                           Buffer* dst, u64 dst_offset, u64 size, void* data) {
     u32 memory_flags = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
     u32 buffer_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
     Buffer stanging;
     // 1) Create a stanging buffer
     vulkan_buffer_create(ctx, buffer_flags, memory_flags, size, true, &stanging);
@@ -484,35 +447,21 @@ void buffer_data_transfer(VulkanBackend* ctx, VkCommandPool pool, VkFence fence,
 
 void vulkan_backend_destroy(void) {
     vkDeviceWaitIdle(backend.device.logical);
-
     INFO("Destroying Vulkan Vertex Buffer...");
     vulkan_buffer_destroy(&backend, &backend.vertex_buffer);
     INFO("Destroying Vulkan Index Buffer...");
     vulkan_buffer_destroy(&backend, &backend.index_buffer);
-
     INFO("Destroying Vulkan Shaders...");
     vulkan_shader_destroy(&backend, &backend.basic_shader);
     // Destroy sync objects
     INFO("Destroying Vulkan Sync Objects...");
     for (u32 i = 0; i < backend.swapchain.max_frames_in_flight; i++) {
-        if (backend.image_available_semaphores[i]) {
-            vkDestroySemaphore(backend.device.logical, backend.image_available_semaphores[i],
-                               backend.allocator);
-        }
-        if (backend.queue_complete_semaphores[i]) {
-            vkDestroySemaphore(backend.device.logical, backend.queue_complete_semaphores[i],
-                               backend.allocator);
-        }
-        if (backend.in_flight_fences[i]) {
-            vkDestroyFence(backend.device.logical, backend.in_flight_fences[i], backend.allocator);
-        }
+        vkDestroySemaphore(backend.device.logical, backend.image_available_semaphores[i],
+                           backend.allocator);
+        vkDestroySemaphore(backend.device.logical, backend.queue_complete_semaphores[i],
+                           backend.allocator);
+        vkDestroyFence(backend.device.logical, backend.in_flight_fences[i], backend.allocator);
     }
-    vector_free(backend.image_available_semaphores);
-    vector_free(backend.queue_complete_semaphores);
-    vector_free(backend.in_flight_fences);
-    mem_free(backend.images_in_flight);
-    backend.images_in_flight = 0;
-
     INFO("Destroying Vulkan Framebuffers...");
     for (u32 i = 0; i < backend.swapchain.image_count; i++) {
         vkDestroyFramebuffer(backend.device.logical, backend.framebuffers[i], backend.allocator);
@@ -520,12 +469,9 @@ void vulkan_backend_destroy(void) {
     // Destroy command buffers
     INFO("Destroying Vulkan Command Buffers...");
     for (u32 i = 0; i < backend.swapchain.image_count; i++) {
-        if (backend.graphics_command_buffers[i].handle) {
-            vulkan_command_buffer_free(&backend, backend.device.graphics_command_pool,
-                                       &backend.graphics_command_buffers[i]);
-        }
+        vulkan_command_buffer_free(&backend, backend.device.graphics_command_pool,
+                                   &backend.graphics_command_buffers[i]);
     }
-    vector_free(backend.graphics_command_buffers);
     INFO("Destroying Vulkan Renderpass...");
     vulkan_renderpass_destroy(&backend, &backend.main_pass);
     INFO("Destroying Vulkan Swapchain...");
@@ -540,14 +486,10 @@ void vulkan_backend_destroy(void) {
         fn(backend.instance, backend.debugger, backend.allocator);
     }
 #endif
-
     INFO("Destroying Vulkan Device...");
-
     vulkan_device_destroy(&backend);
-
     INFO("Destroying Vulkan Surface...");
     vkDestroySurfaceKHR(backend.instance, backend.surface, backend.allocator);
-
     INFO("Destroying Vulkan Instance...");
     vkDestroyInstance(backend.instance, backend.allocator);
 }

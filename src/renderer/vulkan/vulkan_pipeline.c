@@ -7,6 +7,7 @@ bool vulkan_render_pipeline_create(VulkanBackend* backend, RenderPass* pass, u32
                                    VkPipelineShaderStageCreateInfo* create_infos,
                                    VkViewport viewport, VkRect2D scissor, bool wireframe,
                                    Pipeline* pipeline) {
+
     VkPipelineViewportStateCreateInfo viewport_state = {0};
     viewport_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
     viewport_state.viewportCount = 1;

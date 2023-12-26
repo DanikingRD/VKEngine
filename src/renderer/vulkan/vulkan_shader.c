@@ -68,8 +68,7 @@ bool vulkan_shader_create(VulkanBackend* backend, Shader* shader) {
     viewport.x = 0.0f;
     viewport.y = backend->framebuffer_height;
     viewport.width = (f32)backend->framebuffer_width;
-    // TODO: flip viewport height
-    viewport.height = (f32)backend->framebuffer_height;
+    viewport.height = -(f32)backend->framebuffer_height;
     viewport.minDepth = 0.0f;
     viewport.maxDepth = 1.0f;
 
